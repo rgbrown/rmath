@@ -9,6 +9,10 @@ module RMath
       ProductChain.new [self, rhs]
     end
 
+    def + rhs
+      AdditionChain.new [self, rhs]
+    end
+
     def transpose
       TransposeFunction.new self
     end
@@ -137,6 +141,83 @@ module RMath
       super @@seq_numberer.next_name, rows, cols
     end
   end
+
+  class AdditionChain
+    include Expression
+
+    attr_reader :chain
+
+    def initialize chain
+      @chain = chain
+    end
+
+    def + rhs
+      case rhs
+      when AdditionChain
+        AdditionChain.new chain + rhs.chain
+      when Expression
+        AdditionChain.new chain + [rhs]
+      else
+        raise TypeError, "can't add with #{rhs.inspect}"
+      end
+    end
+
+    def rows
+      chain.first.rows
+    end
+
+    def cols
+      chain.first.cols
+    end
+
+    def length
+      chain.length
+    end
+
+    def into target
+      code = ""
+      if target.unsized?
+        target.rows = rows
+        target.cols = cols
+        code << target.init + "\n"
+
+      end
+
+      unless target.rows == rows && target.cols == cols  
+        raise DimensionError, "incompatible target matrix dimensions"
+      end
+      if chain.any?{|x| x.rows != rows || x.cols != cols}
+        raise DimensionError, "nonconforming matrix dimensions"
+      end
+
+      i, j = %w{i j}
+
+      
+      code + <<-EOS
+for (int i = 0; i < #{rows}; i++) {
+    for (int j = 0; j < #{cols}; j++) {
+        #{target[i, j]} = #{chain.map{|x| x[i,j]}.join(" + ")};
+    }
+}
+      EOS
+    end
+
+
+  end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   class ProductChain
     include Expression

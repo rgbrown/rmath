@@ -8,7 +8,7 @@ double unif(double lower, double upper);
 int main(void)
 {
     int i, j, k;
-    - m, p, q, n = 4, 7, 5, 4 
+    - m, p, q, n = 3, 3, 3, 3 
     - a = Matrix.new 'A', m, p
     - b = Matrix.new 'B', q, p
     - c = Matrix.new 'C', q, n 
@@ -21,7 +21,7 @@ int main(void)
       = var.unif_fill -1, 1
       = var.display 
 
-    = (a*b.transpose*c).into(d)
+    = (a + b + c).into(d)
     = d.display
 }
 
@@ -42,6 +42,3 @@ void printmat(char *name, double *A, int m, int n) {
   }
   printf("];\n");
 }
-
-
-
