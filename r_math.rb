@@ -1,6 +1,26 @@
 module RMath
   class DimensionError < StandardError
   end
+  class NotSizedError < StandardError
+  end
+
+  module Expression
+    def * rhs
+      ProductChain.new [self, rhs]
+    end
+
+    def transpose
+      TransposeFunction.new self
+    end
+
+  end
+
+  class Numeric
+    include Expression
+    def transpose
+      self
+    end
+  end
 
   class SequentialNumberer
     def initialize
@@ -17,9 +37,11 @@ module RMath
   end
 
   class Matrix 
-    attr_reader :name, :rows, :cols
+    include Expression
+
+    attr_reader :name
   
-    def initialize name, rows, cols
+    def initialize name, rows=nil, cols=nil
       @name = name
       @rows = rows
       @cols = cols
@@ -28,9 +50,27 @@ module RMath
     def declaration
       "double *#{name};"
     end
-  
+
+    def rows
+      @rows || raise(NotSizedError, "No rows defined")
+    end
+
+    def cols
+      @cols || raise(NotSizedError, "No cols defined")
+    end
+
+    def allocated?
+      !!@allocated
+    end
+
     def malloc
+      @allocated = true
       "#{name} = malloc(#{rows * cols} * sizeof (*#{name}));"
+    end
+
+    def free
+      raise NotAllocatedError, "#{name.inspect} not malloced" unless allocated?
+      "free(#{name});"
     end
   
     def unif_fill lower, upper
@@ -38,7 +78,7 @@ module RMath
       "  #{name}[i] = unif(#{lower}, #{upper});"
     end
   
-    def print
+    def display
       "printmat(#{name.inspect}, #{name}, #{rows}, #{cols});"
     end
 
@@ -46,12 +86,35 @@ module RMath
       "#{name}[#{i} + (#{j}) * #{rows}]"
     end
 
-    def * rhs
-      ProductChain.new [self, rhs]
-    end
 
     def inspect
-      "#<Matrix #{name.inspect} rows=#@rows cols=#@cols>"
+      "#<Matrix #{@name.inspect} rows=#{@rows.inspect} cols=#{@cols.inspect}>"
+    end
+  end
+
+  class TransposeFunction
+    include Expression
+
+    attr_reader :x
+
+    def initialize x
+      @x = x
+    end
+
+    def [] i, j
+      x[j, i]
+    end
+
+    def rows
+      x.cols
+    end
+
+    def cols
+      x.rows
+    end
+
+    def transpose
+      x
     end
   end
 
@@ -63,6 +126,8 @@ module RMath
   end
 
   class ProductChain
+    include Expression
+
     attr_reader :chain
 
     def initialize chain
@@ -73,7 +138,7 @@ module RMath
       case rhs
       when ProductChain
         ProductChain.new chain + rhs.chain
-      when Matrix, Numeric 
+      when Expression
         ProductChain.new chain + [rhs]
       else
         raise TypeError, "can't multiply with #{rhs.inspect}"
@@ -102,33 +167,36 @@ module RMath
         op1 = chain[0]
         multiplicands = chain.drop(1)
         op2 = multiplicands.shift
-
-        until multiplicands.empty? do
-          if multplicands.length == 1
+        code = []
+        loop do
+          unless multiplicands.any?
             prod = target
           else
             prod = TempMatrix.new op1.rows, op2.cols
+            code << prod.declaration
+            code << prod.malloc
           end
 
-          (op1*op2).into_two(prod)
+          p [op1, op2, prod]
+          code << (op1*op2).into_two(prod)
           if op1.is_a?(TempMatrix)
-            op1.free
+            code << op1.free
           end
+          break if multiplicands.empty?
           op1, op2 = prod, multiplicands.shift
         end
-
+        p code
+        code.join "\n"
       end
-
-
     end
 
-    
+    protected
     def into_two target
+      raise unless length == 2
+      a, b = chain
       unless target.rows == a.rows && target.cols == b.cols
         raise DimensionError, "incompatible matrix dimensions"
       end
-      raise unless length == 2
-      a, b = chain
 
       i, j, k = %w{i j k}
 
