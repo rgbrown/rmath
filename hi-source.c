@@ -10,7 +10,7 @@ int main(void)
     int i, j, k;
     - m, p, q, n = 6, 7, 5, 4 
     - a = Matrix.new 'A', m, p
-    - b = Matrix.new 'B', p, q
+    - b = Matrix.new 'B', q, p
     - c = Matrix.new 'C', q, n 
     - d = Matrix.new 'D', m, n
 
@@ -22,7 +22,7 @@ int main(void)
       = var.unif_fill -1, 1
       = var.display 
 
-    = (a*b*c).into(d)
+    = (a*b.transpose*c).into(d)
     = d.display
 }
 

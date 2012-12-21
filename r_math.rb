@@ -194,8 +194,11 @@ module RMath
     def into_two target
       raise unless length == 2
       a, b = chain
-      unless target.rows == a.rows && target.cols == b.cols
-        raise DimensionError, "incompatible matrix dimensions"
+      unless target.rows == a.rows && target.cols == b.cols  
+        raise DimensionError, "incompatible target matrix dimensions"
+      end
+      unless a.cols == b.rows
+        raise DimensionError, "nonconforming matrix dimensions"
       end
 
       i, j, k = %w{i j k}
