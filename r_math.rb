@@ -40,6 +40,8 @@ module RMath
     include Expression
 
     attr_reader :name
+    attr_writer :rows, :cols
+
   
     def initialize name, rows=nil, cols=nil
       @name = name
@@ -47,26 +49,26 @@ module RMath
       @cols = cols
     end
   
-    def declaration
-      "double *#{name};"
+    def unsized?
+      !(@rows && @cols)
+    end
+
+    def init
+      declaration + "\n" + malloc
     end
 
     def rows
-      @rows || raise(NotSizedError, "No rows defined")
+      @rows || raise(NotSizedError, "No rows defined on #{inspect}")
     end
 
     def cols
-      @cols || raise(NotSizedError, "No cols defined")
+      @cols || raise(NotSizedError, "No cols defined on #{inspect}")
     end
 
     def allocated?
       !!@allocated
     end
 
-    def malloc
-      @allocated = true
-      "#{name} = malloc(#{rows * cols} * sizeof (*#{name}));"
-    end
 
     def free
       raise NotAllocatedError, "#{name.inspect} not malloced" unless allocated?
@@ -89,6 +91,17 @@ module RMath
 
     def inspect
       "#<Matrix #{@name.inspect} rows=#{@rows.inspect} cols=#{@cols.inspect}>"
+    end
+
+    private
+
+    def declaration
+      "double *#{name};"
+    end
+
+    def malloc
+      @allocated = true
+      "#{name} = malloc(#{rows * cols} * sizeof (*#{name}));"
     end
   end
 
@@ -159,25 +172,28 @@ module RMath
 
     
     def into target
+      code = []
+      if target.unsized?
+        target.rows = rows
+        target.cols = cols
+        code << target.init
+      end
       if length == 2
-        into_two target
+        code << into_two(target)
       elsif length <= 1
         raise NotImplementedError
       else
         op1 = chain[0]
         multiplicands = chain.drop(1)
         op2 = multiplicands.shift
-        code = []
         loop do
           unless multiplicands.any?
             prod = target
           else
             prod = TempMatrix.new op1.rows, op2.cols
-            code << prod.declaration
-            code << prod.malloc
+            code << prod.init
           end
 
-          p [op1, op2, prod]
           code << (op1*op2).into_two(prod)
           if op1.is_a?(TempMatrix)
             code << op1.free
@@ -185,9 +201,8 @@ module RMath
           break if multiplicands.empty?
           op1, op2 = prod, multiplicands.shift
         end
-        p code
-        code.join "\n"
       end
+      code.join "\n"
     end
 
     protected

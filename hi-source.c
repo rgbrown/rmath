@@ -8,15 +8,14 @@ double unif(double lower, double upper);
 int main(void)
 {
     int i, j, k;
-    - m, p, q, n = 6, 7, 5, 4 
+    - m, p, q, n = 4, 7, 5, 4 
     - a = Matrix.new 'A', m, p
     - b = Matrix.new 'B', q, p
     - c = Matrix.new 'C', q, n 
-    - d = Matrix.new 'D', m, n
+    - d = Matrix.new 'D'
 
-    - [a, b, c, d].each do |var|
-      = var.declaration
-      = var.malloc
+    - [a, b, c].each do |var|
+      = var.init
 
     - [a, b, c].each do |var|
       = var.unif_fill -1, 1
