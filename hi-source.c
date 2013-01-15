@@ -7,23 +7,21 @@ double unif(double lower, double upper);
 
 int main(void)
 {
-    int i, j, k;
     - m, p, q, n = 3, 4, 10, 3 
-    - a = Matrix.new 'A', m, p
-    - b = Matrix.new 'B', p, q
-    - c = Matrix.new 'C', q, n 
-    - d = Matrix.new 'D', m, n
-    - e = Matrix.new 'E'
+    - a = Matrix.new 'A', q, q
+    - b = Matrix.new 'B', q, q
+    - c = Matrix.new 'C', q, q 
+    - d = Matrix.new 'D'
 
-    - [a, b, c, d].each do |var|
+    - [a, b, c].each do |var|
       = var.init
 
-    - [a, b, c, d].each do |var|
+    - [a, b, c].each do |var|
       = var.unif_fill -1, 1
       = var.display 
 
-    = (d * d * (d + (a * b * c * d) + d)).into(e)
-    = e.display
+    = (a * b * (c * b * c)).into(d)
+    = d.display
 }
 
 

@@ -270,13 +270,13 @@ for (int i = 0; i < #{rows}; i++) {
         if expr.is_a? Matrix
           expr
         else
+          puts "Making a tempmatrix"
           op = TempMatrix.new expr.rows, expr.cols
           code << op.init
           code << expr.into(op)
           op
         end
       end
-      mult_original = multiplicands.dup
 
       if multiplicands.length == 2
         code << into_two(target)
@@ -294,21 +294,16 @@ for (int i = 0; i < #{rows}; i++) {
           end
 
           code << (op1*op2).into_two(prod)
-          if op1.is_a?(TempMatrix)
-            code << op1.free
+          [op1, op2].each do |var|
+            if var.is_a?(TempMatrix)
+              code << var.free
+            end
           end
           break if multiplicands.empty?
 
           op1, op2 = prod, multiplicands.shift
         end
       end
-
-      mult_original.each do |expr|
-        if expr.is_a? TempMatrix
-          code << expr.free
-        end
-      end
-
       code.join "\n"
     end
 
