@@ -8,21 +8,22 @@ double unif(double lower, double upper);
 int main(void)
 {
     int i, j, k;
-    - m, p, q, n = 3, 3, 3, 3 
+    - m, p, q, n = 3, 4, 10, 3 
     - a = Matrix.new 'A', m, p
-    - b = Matrix.new 'B', q, p
+    - b = Matrix.new 'B', p, q
     - c = Matrix.new 'C', q, n 
-    - d = Matrix.new 'D'
+    - d = Matrix.new 'D', m, n
+    - e = Matrix.new 'E'
 
-    - [a, b, c].each do |var|
+    - [a, b, c, d].each do |var|
       = var.init
 
-    - [a, b, c].each do |var|
+    - [a, b, c, d].each do |var|
       = var.unif_fill -1, 1
       = var.display 
 
-    = (a + b + c).into(d)
-    = d.display
+    = (d * d * (d + (a * b * c * d) + d)).into(e)
+    = e.display
 }
 
 
@@ -37,7 +38,7 @@ void printmat(char *name, double *A, int m, int n) {
   printf("%s = [...\n", name);
   for (i = 0; i < m; i++) {
     for (j = 0; j < n; j++)
-      printf(" % 7.3f", A[i+j*m]);
+      printf(" % 8.4f", A[i+j*m]);
     printf(",\n");
   }
   printf("];\n");

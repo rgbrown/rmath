@@ -73,7 +73,6 @@ module RMath
       !!@allocated
     end
 
-
     def free
       raise NotAllocatedError, "#{name.inspect} not malloced" unless allocated?
       "free(#{name});"
@@ -142,6 +141,11 @@ module RMath
     end
   end
 
+
+
+
+
+
   class AdditionChain
     include Expression
 
@@ -165,24 +169,20 @@ module RMath
     def rows
       chain.first.rows
     end
-
     def cols
       chain.first.cols
     end
-
     def length
       chain.length
     end
 
     def into target
-      code = ""
+      code = [] 
       if target.unsized?
         target.rows = rows
         target.cols = cols
-        code << target.init + "\n"
-
+        code << target.init
       end
-
       unless target.rows == rows && target.cols == cols  
         raise DimensionError, "incompatible target matrix dimensions"
       end
@@ -190,28 +190,35 @@ module RMath
         raise DimensionError, "nonconforming matrix dimensions"
       end
 
+      addends = chain.collect do |expr|
+        if expr.is_a? Matrix
+          expr
+        else
+          op = TempMatrix.new expr.rows, expr.cols
+          code << op.init
+          code << expr.into(op)
+          op
+        end
+      end
+
       i, j = %w{i j}
 
       
-      code + <<-EOS
+      code << <<-EOS
 for (int i = 0; i < #{rows}; i++) {
     for (int j = 0; j < #{cols}; j++) {
-        #{target[i, j]} = #{chain.map{|x| x[i,j]}.join(" + ")};
+        #{target[i, j]} = #{addends.map{|x| x[i,j]}.join(" + ")};
     }
 }
       EOS
+      addends.each do |expr|
+        if expr.is_a? TempMatrix
+          code << expr.free
+        end
+      end
+      code.join "\n"
     end
-
-
   end
-
-
-
-
-
-
-
-
 
 
 
@@ -233,6 +240,7 @@ for (int i = 0; i < #{rows}; i++) {
       when ProductChain
         ProductChain.new chain + rhs.chain
       when Expression
+        # Something that isn't a ProductChain but includes Expression
         ProductChain.new chain + [rhs]
       else
         raise TypeError, "can't multiply with #{rhs.inspect}"
@@ -250,7 +258,6 @@ for (int i = 0; i < #{rows}; i++) {
     def length
       chain.length
     end
-
     
     def into target
       code = []
@@ -259,13 +266,24 @@ for (int i = 0; i < #{rows}; i++) {
         target.cols = cols
         code << target.init
       end
-      if length == 2
+      multiplicands = chain.collect do |expr|
+        if expr.is_a? Matrix
+          expr
+        else
+          op = TempMatrix.new expr.rows, expr.cols
+          code << op.init
+          code << expr.into(op)
+          op
+        end
+      end
+      mult_original = multiplicands.dup
+
+      if multiplicands.length == 2
         code << into_two(target)
       elsif length <= 1
         raise NotImplementedError
       else
-        op1 = chain[0]
-        multiplicands = chain.drop(1)
+        op1 = multiplicands.shift
         op2 = multiplicands.shift
         loop do
           unless multiplicands.any?
@@ -280,21 +298,30 @@ for (int i = 0; i < #{rows}; i++) {
             code << op1.free
           end
           break if multiplicands.empty?
+
           op1, op2 = prod, multiplicands.shift
         end
       end
+
+      mult_original.each do |expr|
+        if expr.is_a? TempMatrix
+          code << expr.free
+        end
+      end
+
       code.join "\n"
     end
 
     protected
+
     def into_two target
       raise unless length == 2
       a, b = chain
-      unless target.rows == a.rows && target.cols == b.cols  
-        raise DimensionError, "incompatible target matrix dimensions"
-      end
       unless a.cols == b.rows
         raise DimensionError, "nonconforming matrix dimensions"
+      end
+      unless target.rows == a.rows && target.cols == b.cols  
+        raise DimensionError, "incompatible target matrix dimensions"
       end
 
       i, j, k = %w{i j k}
